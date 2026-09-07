@@ -1,0 +1,73 @@
+package com.example.rotarylauncher
+
+import android.content.Context
+
+object ConfigPersistence {
+    private const val PREFS_NAME = "rotary_launcher_config"
+
+    fun load(context: Context) {
+        val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        WheelConfig.wheelSizeDp.floatValue = p.getFloat("wheelSizeDp", WheelConfig.wheelSizeDp.floatValue)
+        WheelConfig.innerRadiusRatio.floatValue = p.getFloat("innerRadiusRatio", WheelConfig.innerRadiusRatio.floatValue)
+        WheelConfig.detentsPerRotation.floatValue = p.getFloat("detentsPerRotation", WheelConfig.detentsPerRotation.floatValue)
+        WheelConfig.tapArcToleranceDeg.floatValue = p.getFloat("tapArcToleranceDeg", WheelConfig.tapArcToleranceDeg.floatValue)
+        WheelConfig.wheelCenterXDp.floatValue = p.getFloat("wheelCenterXDp", WheelConfig.wheelCenterXDp.floatValue)
+        WheelConfig.wheelCenterYDp.floatValue = p.getFloat("wheelCenterYDp", WheelConfig.wheelCenterYDp.floatValue)
+        WheelConfig.appDisplayIconSizeDp.floatValue = p.getFloat("appDisplayIconSizeDp", WheelConfig.appDisplayIconSizeDp.floatValue)
+        WheelConfig.rememberFolderPosition.value = p.getBoolean("rememberFolderPosition", WheelConfig.rememberFolderPosition.value)
+        WheelConfig.dpadVerticalInverted.value = p.getBoolean("dpadVerticalInverted", WheelConfig.dpadVerticalInverted.value)
+        WheelConfig.appArcCenterYDp.floatValue = p.getFloat("appArcCenterYDp", WheelConfig.appArcCenterYDp.floatValue)
+        WheelConfig.appArcRadiusDp.floatValue = p.getFloat("appArcRadiusDp", WheelConfig.appArcRadiusDp.floatValue)
+        WheelConfig.appIconAngularGapDeg.floatValue = p.getFloat("appIconAngularGapDeg", WheelConfig.appIconAngularGapDeg.floatValue)
+        WheelConfig.connectorGradientStartFraction.floatValue = p.getFloat("connectorGradientStartFraction", WheelConfig.connectorGradientStartFraction.floatValue)
+        WheelConfig.connectorLineThicknessDp.floatValue = p.getFloat("connectorLineThicknessDp", WheelConfig.connectorLineThicknessDp.floatValue)
+        WheelConfig.connectorGradientEnabled.value = p.getBoolean("connectorGradientEnabled", WheelConfig.connectorGradientEnabled.value)
+        WheelConfig.arcMirrored.value = p.getBoolean("arcMirrored", WheelConfig.arcMirrored.value)
+        WheelConfig.displayStyle.value = WheelDisplayStyle.valueOf(p.getString("displayStyle", WheelDisplayStyle.CENTER.name) ?: WheelDisplayStyle.CENTER.name)
+        WheelConfig.debugOverlayEnabled.value = p.getBoolean("debugOverlayEnabled", WheelConfig.debugOverlayEnabled.value)
+        WheelConfig.topBottomSplitPercent.floatValue = p.getFloat("topBottomSplitPercent", WheelConfig.topBottomSplitPercent.floatValue)
+        WheelConfig.pitchBlackMode.value = p.getBoolean("pitchBlackMode", WheelConfig.pitchBlackMode.value)
+        WheelConfig.edgeMarginDp.floatValue = p.getFloat("edgeMarginDp", WheelConfig.edgeMarginDp.floatValue)
+        WheelConfig.pivotSkewXDp.floatValue = p.getFloat("pivotSkewXDp", WheelConfig.pivotSkewXDp.floatValue)
+        WheelConfig.pivotSkewYDp.floatValue = p.getFloat("pivotSkewYDp", WheelConfig.pivotSkewYDp.floatValue)
+        WheelConfig.folderStripHeightDp.floatValue = p.getFloat("folderStripHeightDp", WheelConfig.folderStripHeightDp.floatValue)
+
+        HapticsConfig.buttonIntensityMs.floatValue = p.getFloat("buttonIntensityMs", HapticsConfig.buttonIntensityMs.floatValue)
+        HapticsConfig.detentIntensityMs.floatValue = p.getFloat("detentIntensityMs", HapticsConfig.detentIntensityMs.floatValue)
+        HapticsConfig.buttonDelayMs.floatValue = p.getFloat("buttonDelayMs", HapticsConfig.buttonDelayMs.floatValue)
+        HapticsConfig.detentDelayMs.floatValue = p.getFloat("detentDelayMs", HapticsConfig.detentDelayMs.floatValue)
+    }
+
+    fun save(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putFloat("wheelSizeDp", WheelConfig.wheelSizeDp.floatValue)
+            .putFloat("innerRadiusRatio", WheelConfig.innerRadiusRatio.floatValue)
+            .putFloat("detentsPerRotation", WheelConfig.detentsPerRotation.floatValue)
+            .putFloat("tapArcToleranceDeg", WheelConfig.tapArcToleranceDeg.floatValue)
+            .putFloat("wheelCenterXDp", WheelConfig.wheelCenterXDp.floatValue)
+            .putFloat("wheelCenterYDp", WheelConfig.wheelCenterYDp.floatValue)
+            .putFloat("appDisplayIconSizeDp", WheelConfig.appDisplayIconSizeDp.floatValue)
+            .putBoolean("rememberFolderPosition", WheelConfig.rememberFolderPosition.value)
+            .putBoolean("dpadVerticalInverted", WheelConfig.dpadVerticalInverted.value)
+            .putFloat("appArcCenterYDp", WheelConfig.appArcCenterYDp.floatValue)
+            .putFloat("appArcRadiusDp", WheelConfig.appArcRadiusDp.floatValue)
+            .putFloat("appIconAngularGapDeg", WheelConfig.appIconAngularGapDeg.floatValue)
+            .putFloat("connectorGradientStartFraction", WheelConfig.connectorGradientStartFraction.floatValue)
+            .putFloat("connectorLineThicknessDp", WheelConfig.connectorLineThicknessDp.floatValue)
+            .putBoolean("connectorGradientEnabled", WheelConfig.connectorGradientEnabled.value)
+            .putBoolean("arcMirrored", WheelConfig.arcMirrored.value)
+            .putString("displayStyle", WheelConfig.displayStyle.value.name)
+            .putBoolean("debugOverlayEnabled", WheelConfig.debugOverlayEnabled.value)
+            .putFloat("topBottomSplitPercent", WheelConfig.topBottomSplitPercent.floatValue)
+            .putBoolean("pitchBlackMode", WheelConfig.pitchBlackMode.value)
+            .putFloat("edgeMarginDp", WheelConfig.edgeMarginDp.floatValue)
+            .putFloat("pivotSkewXDp", WheelConfig.pivotSkewXDp.floatValue)
+            .putFloat("pivotSkewYDp", WheelConfig.pivotSkewYDp.floatValue)
+            .putFloat("folderStripHeightDp", WheelConfig.folderStripHeightDp.floatValue)
+            .putFloat("buttonIntensityMs", HapticsConfig.buttonIntensityMs.floatValue)
+            .putFloat("detentIntensityMs", HapticsConfig.detentIntensityMs.floatValue)
+            .putFloat("buttonDelayMs", HapticsConfig.buttonDelayMs.floatValue)
+            .putFloat("detentDelayMs", HapticsConfig.detentDelayMs.floatValue)
+            .apply()
+    }
+}
