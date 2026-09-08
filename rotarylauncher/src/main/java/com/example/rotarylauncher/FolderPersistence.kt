@@ -13,6 +13,11 @@ object FolderPersistence {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val json = prefs.getString(KEY_FOLDERS, null)
 
+        // If detection genuinely returned nothing (e.g. a query failure), don't treat that as
+        // "every app got uninstalled" — skip pruning rather than wipe every folder's contents.
+        val installedPackages = allDetectedApps.map { it.packageName }.toSet()
+        var prunedAny = false
+
         if (json == null) {
             FoldersConfig.folders.value = emptyList()
         } else {
@@ -22,7 +27,14 @@ object FolderPersistence {
                 val obj = array.getJSONObject(i)
                 val pkgArray = obj.getJSONArray("apps")
                 val pkgs = mutableStateListOf<String>()
-                for (j in 0 until pkgArray.length()) pkgs.add(pkgArray.getString(j))
+                for (j in 0 until pkgArray.length()) {
+                    val pkg = pkgArray.getString(j)
+                    if (installedPackages.isEmpty() || pkg in installedPackages) {
+                        pkgs.add(pkg)
+                    } else {
+                        prunedAny = true
+                    }
+                }
                 loaded.add(Folder(id = obj.getString("id"), name = obj.getString("name"), appPackageNames = pkgs))
             }
             FoldersConfig.folders.value = loaded
@@ -33,7 +45,7 @@ object FolderPersistence {
         FavoritesConfig.slot3.value = prefs.getString("fav3", null)
         FavoritesConfig.slot4.value = prefs.getString("fav4", null)
 
-        save(context)
+        if (prunedAny) save(context)
     }
 
     fun save(context: Context) {

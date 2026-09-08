@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,18 +37,26 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.zIndex
 import com.example.rotarylauncher.ui.theme.LabelStyle
 import java.util.UUID
 
@@ -73,13 +82,9 @@ fun AppManagerScreen(allApps: List<AppEntry>) {
                     modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TabChip("Favorites", selectedTabId == FAVORITES_TAB_ID, onBg, muted) {
-                        selectedTabId = FAVORITES_TAB_ID
-                    }
+                    TabChip("Favorites", selectedTabId == FAVORITES_TAB_ID, onBg, muted) { selectedTabId = FAVORITES_TAB_ID }
                     FoldersConfig.folders.value.forEach { folder ->
-                        TabChip(folder.name.uppercase(), selectedTabId == folder.id, onBg, muted) {
-                            selectedTabId = folder.id
-                        }
+                        TabChip(folder.name.toTitleCaseSmart(), selectedTabId == folder.id, onBg, muted) { selectedTabId = folder.id }
                     }
                 }
                 IconButton(onClick = {
@@ -88,9 +93,7 @@ fun AppManagerScreen(allApps: List<AppEntry>) {
                         FoldersConfig.folders.value = FoldersConfig.folders.value + newFolder
                         selectedTabId = newFolder.id
                     }
-                }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add folder", tint = onBg)
-                }
+                }) { Icon(Icons.Filled.Add, contentDescription = "Add folder", tint = onBg) }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -100,11 +103,8 @@ fun AppManagerScreen(allApps: List<AppEntry>) {
                     FavoritesConfig.slots().forEachIndexed { index, slot ->
                         val app = allApps.find { it.packageName == slot.value }
                         Box(modifier = Modifier.size(56.dp), contentAlignment = Alignment.Center) {
-                            if (app != null) {
-                                IconTile(app = app, size = 48.dp) { slot.value = null }
-                            } else {
-                                Text("${index + 1}", color = muted, style = LabelStyle)
-                            }
+                            if (app != null) IconTile(app = app, size = 48.dp) { slot.value = null }
+                            else Text("${index + 1}", color = muted, style = LabelStyle)
                         }
                     }
                 }
@@ -115,12 +115,11 @@ fun AppManagerScreen(allApps: List<AppEntry>) {
                 if (folder != null) {
                     val folderIndex = FoldersConfig.folders.value.indexOf(folder)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(folder.name.uppercase(), color = onBg, style = LabelStyle, modifier = Modifier.weight(1f))
+                        Text(folder.name.toTitleCaseSmart(), color = onBg, style = LabelStyle, modifier = Modifier.weight(1f))
                         Text("◀", color = muted, modifier = Modifier.clickable {
                             if (folderIndex > 0) {
                                 val list = FoldersConfig.folders.value.toMutableList()
-                                val item = list.removeAt(folderIndex)
-                                list.add(folderIndex - 1, item)
+                                list.add(folderIndex - 1, list.removeAt(folderIndex))
                                 FoldersConfig.folders.value = list
                             }
                         })
@@ -128,8 +127,7 @@ fun AppManagerScreen(allApps: List<AppEntry>) {
                         Text("▶", color = muted, modifier = Modifier.clickable {
                             if (folderIndex < FoldersConfig.folders.value.lastIndex) {
                                 val list = FoldersConfig.folders.value.toMutableList()
-                                val item = list.removeAt(folderIndex)
-                                list.add(folderIndex + 1, item)
+                                list.add(folderIndex + 1, list.removeAt(folderIndex))
                                 FoldersConfig.folders.value = list
                             }
                         })
@@ -142,30 +140,9 @@ fun AppManagerScreen(allApps: List<AppEntry>) {
                         }
                     }
                     Spacer(Modifier.height(4.dp))
-                    val folderApps = folder.appPackageNames.mapNotNull { pkg -> allApps.find { it.packageName == pkg } }
-                    LazyVerticalGrid(columns = GridCells.Fixed(5), modifier = Modifier.fillMaxWidth()) {
-                        items(folderApps, key = { it.packageName }) { app ->
-                            val idx = folder.appPackageNames.indexOf(app.packageName)
-                            Column(modifier = Modifier.padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                IconTile(app = app, size = 44.dp) { folder.appPackageNames.remove(app.packageName) }
-                                Row {
-                                    Text("◀", color = muted, modifier = Modifier.clickable {
-                                        if (idx > 0) {
-                                            val item = folder.appPackageNames.removeAt(idx)
-                                            folder.appPackageNames.add(idx - 1, item)
-                                        }
-                                    })
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("▶", color = muted, modifier = Modifier.clickable {
-                                        if (idx < folder.appPackageNames.lastIndex) {
-                                            val item = folder.appPackageNames.removeAt(idx)
-                                            folder.appPackageNames.add(idx + 1, item)
-                                        }
-                                    })
-                                }
-                            }
-                        }
-                    }
+                    Text("Long-Press An App To Drag And Reorder", color = muted, fontSize = 11.sp)
+                    Spacer(Modifier.height(4.dp))
+                    ReorderableFolderGrid(folder = folder, allApps = allApps)
                 }
             }
         }
@@ -181,27 +158,18 @@ fun AppManagerScreen(allApps: List<AppEntry>) {
                             FavoritesConfig.assignFirstEmpty(app.packageName)
                         } else {
                             val folder = FoldersConfig.folders.value.find { it.id == selectedTabId }
-                            if (folder != null && app.packageName !in folder.appPackageNames) {
-                                folder.appPackageNames.add(app.packageName)
-                            }
+                            if (folder != null && app.packageName !in folder.appPackageNames) folder.appPackageNames.add(app.packageName)
                         }
                     }
-                    Text(app.label.uppercase(), color = onBg, fontSize = 9.sp, maxLines = 1, style = LabelStyle)
+                    Text(app.label.toTitleCaseSmart(), color = onBg, fontSize = 9.sp, maxLines = 1, style = LabelStyle)
                 }
             }
         }
     }
 
-    // Keyboard-safe rename: a real Dialog (not inline), imePadding pushes content
-    // above the keyboard so the text field is never covered.
     if (renamingId != null) {
         Dialog(onDismissRequest = { renamingId = null }) {
-            Column(
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp))
-                    .padding(16.dp)
-                    .imePadding()
-            ) {
+            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp)).padding(16.dp).imePadding()) {
                 Text("Rename Folder", color = onBg, style = LabelStyle)
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = renameText, onValueChange = { renameText = it }, modifier = Modifier.fillMaxWidth())
@@ -241,24 +209,112 @@ fun AppManagerScreen(allApps: List<AppEntry>) {
     }
 }
 
+/**
+ * First-pass live-reorder grid. All items compose simultaneously (not lazy) so their
+ * bounds can be tracked directly — fine for realistic folder sizes (tens of apps),
+ * would need rework for hundreds. Long-press starts a drag; nearest-cell-center wins
+ * as the live swap target; release commits whatever order resulted.
+ */
+@Composable
+private fun ReorderableFolderGrid(folder: Folder, allApps: List<AppEntry>, columns: Int = 5) {
+    val folderApps = folder.appPackageNames.mapNotNull { pkg -> allApps.find { it.packageName == pkg } }
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    val itemBounds = remember { mutableStateMapOf<Int, Rect>() }
+
+    Column {
+        var globalIndex = 0
+        folderApps.chunked(columns).forEach { rowApps ->
+            Row {
+                rowApps.forEach { app ->
+                    val index = globalIndex
+                    globalIndex++
+                    val isDragging = draggingIndex == index
+
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .onGloballyPositioned { coords -> itemBounds[index] = coords.boundsInParent() }
+                            .graphicsLayer {
+                                if (isDragging) { translationX = dragOffset.x; translationY = dragOffset.y }
+                            }
+                            .zIndex(if (isDragging) 1f else 0f)
+                            .pointerInputSafeDrag(
+                                onDragStart = { draggingIndex = index; dragOffset = Offset.Zero },
+                                onDrag = { amount ->
+                                    dragOffset += amount
+                                    val currentIdx = draggingIndex ?: return@pointerInputSafeDrag
+                                    val currentBounds = itemBounds[currentIdx] ?: return@pointerInputSafeDrag
+                                    val draggedCenter = currentBounds.center + dragOffset
+                                    val targetIndex = itemBounds.entries
+                                        .filter { it.key != currentIdx }
+                                        .minByOrNull { (it.value.center - draggedCenter).getDistance() }
+                                        ?.key
+                                    if (targetIndex != null) {
+                                        val newBounds = itemBounds[targetIndex]
+                                        val oldBounds = currentBounds
+                                        val pkg = folder.appPackageNames.removeAt(currentIdx)
+                                        folder.appPackageNames.add(targetIndex, pkg)
+                                        draggingIndex = targetIndex
+                                        if (newBounds != null) dragOffset += (oldBounds.topLeft - newBounds.topLeft)
+                                    }
+                                },
+                                onDragEnd = { draggingIndex = null; dragOffset = Offset.Zero }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IconTile(app = app, size = 44.dp) { folder.appPackageNames.remove(app.packageName) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun Modifier.pointerInputSafeDrag(
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit
+): Modifier = this.then(
+    Modifier.pointerInput(Unit) {
+        detectDragGesturesAfterLongPress(
+            onDragStart = { onDragStart() },
+            onDrag = { change, amount -> change.consume(); onDrag(amount) },
+            onDragEnd = { onDragEnd() },
+            onDragCancel = { onDragEnd() }
+        )
+    }
+)
+
+// Thin wrapper kept separate purely so the long, fully-qualified pointerInput call
+// above stays readable — functionally identical to calling pointerInput directly.
+/*
+@Suppress("FunctionName")
+private fun Modifier.androidx_compose_ui_input_pointer_pointerInput_workaround(
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit
+): Modifier = androidx.compose.ui.input.pointer.pointerInput(Unit) {
+    detectDragGesturesAfterLongPress(
+        onDragStart = { onDragStart() },
+        onDrag = { change, amount -> change.consume(); onDrag(amount) },
+        onDragEnd = { onDragEnd() },
+        onDragCancel = { onDragEnd() }
+    )
+}
+*/
+
 @Composable
 private fun IconTile(app: AppEntry, size: Dp, onClick: () -> Unit) {
     val density = LocalDensity.current
     val bg = MaterialTheme.colorScheme.background
     val outline = MaterialTheme.colorScheme.onSurface.copy(alpha = HAIRLINE_ALPHA)
     val gradient = remember(size) {
-        Brush.radialGradient(
-            colors = listOf(Color.Black.copy(alpha = 0.03f), Color.Transparent),
-            radius = with(density) { size.toPx() } * 0.9f
-        )
+        Brush.radialGradient(colors = listOf(Color.Black.copy(alpha = 0.03f), Color.Transparent), radius = with(density) { size.toPx() } * 0.9f)
     }
     Box(
-        modifier = Modifier
-            .size(size)
-            .background(bg, RoundedCornerShape(14.dp))
-            .background(gradient, RoundedCornerShape(14.dp))
-            .border(1.dp, outline, RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick),
+        modifier = Modifier.size(size).background(bg, RoundedCornerShape(14.dp)).background(gradient, RoundedCornerShape(14.dp))
+            .border(1.dp, outline, RoundedCornerShape(14.dp)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Image(bitmap = app.icon, contentDescription = app.label, modifier = Modifier.size(size * 0.8f))
@@ -267,10 +323,5 @@ private fun IconTile(app: AppEntry, size: Dp, onClick: () -> Unit) {
 
 @Composable
 private fun TabChip(label: String, selected: Boolean, onBg: Color, muted: Color, onClick: () -> Unit) {
-    Text(
-        label,
-        color = if (selected) onBg else muted,
-        style = LabelStyle,
-        modifier = Modifier.padding(vertical = 6.dp).clickable(onClick = onClick)
-    )
+    Text(label, color = if (selected) onBg else muted, style = LabelStyle, modifier = Modifier.padding(vertical = 6.dp).clickable(onClick = onClick))
 }
