@@ -57,6 +57,17 @@ fun String.capitalizeFirstOnly(): String {
     return this[0].uppercaseChar() + substring(1)
 }
 
+// Title-cases only words that are fully lowercase; leaves any word that already
+// has a capital letter alone (so acronyms/brand names like "NASA" or "iPhone"
+// aren't clobbered by naive per-word capitalization).
+fun String.toTitleCaseSmart(): String {
+    if (isEmpty()) return this
+    return split(" ").joinToString(" ") { word ->
+        if (word.isEmpty() || word.any { it.isUpperCase() }) word
+        else word.replaceFirstChar { it.uppercaseChar() }
+    }
+}
+
 @Composable
 private fun SingleLineClip(text: String, style: TextStyle, maxWidthDp: Dp) {
     Box(modifier = Modifier.width(maxWidthDp)) {

@@ -69,6 +69,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.rotarylauncher.ui.theme.LabelStyle
 import com.example.rotarylauncher.ui.theme.RotaryLauncherTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -105,17 +108,31 @@ class MainActivity : ComponentActivity() {
                     AppSettingsState.showSettings.value = false
                 }
 
-                val allDetectedApps = remember { detectInstalledApps(context.packageManager) }
-                LaunchedEffect(Unit) { FolderPersistence.load(context, allDetectedApps) }
+                var allDetectedApps by remember { mutableStateOf<List<AppEntry>>(emptyList()) }
+                var initialDataLoaded by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    val apps = withContext(Dispatchers.Default) { detectInstalledApps(context.packageManager) }
+                    allDetectedApps = apps
+                    FolderPersistence.load(context, apps)
+                    initialDataLoaded = true
+                }
 
                 val categories = FoldersConfig.folders.value
                     .filter { it.appPackageNames.isNotEmpty() }
                     .map { folder -> Category(name = folder.name, apps = folder.appPackageNames.mapNotNull { pkg -> allDetectedApps.find { it.packageName == pkg } }) }
 
-                LaunchedEffect(
-                    FoldersConfig.folders.value, FavoritesConfig.slot1.value, FavoritesConfig.slot2.value,
-                    FavoritesConfig.slot3.value, FavoritesConfig.slot4.value
-                ) { FolderPersistence.save(context) }
+                // Gated on initialDataLoaded so this can't fire (and overwrite real data with
+                // still-empty defaults) before FolderPersistence.load() above has finished.
+                // Reads into folder.appPackageNames directly so add/remove/reorder inside a
+                // folder is tracked — not just replacing the whole folder list/reference.
+                LaunchedEffect(initialDataLoaded) {
+                    if (!initialDataLoaded) return@LaunchedEffect
+                    snapshotFlow {
+                        FoldersConfig.folders.value.joinToString("|") { folder ->
+                            "${folder.id}:${folder.name}:${folder.appPackageNames.joinToString(",")}"
+                        } + "#${FavoritesConfig.slot1.value}|${FavoritesConfig.slot2.value}|${FavoritesConfig.slot3.value}|${FavoritesConfig.slot4.value}"
+                    }.collect { FolderPersistence.save(context) }
+                }
 
                 val wheelState = remember { mutableStateOf(WheelUiState()) }
                 val inputHandler = remember(categories) { HomeInputHandler(categories, wheelState, context) }
@@ -150,7 +167,7 @@ class MainActivity : ComponentActivity() {
                             HapticsConfig.buttonIntensityMs.floatValue, HapticsConfig.detentIntensityMs.floatValue,
                             HapticsConfig.buttonDelayMs.floatValue, HapticsConfig.detentDelayMs.floatValue
                         )
-                    }.collect { ConfigPersistence.save(context) }
+                    }.debounce(150).collect { ConfigPersistence.save(context) }
                 }
 
                 var centerPressed by remember { mutableStateOf(false) }
@@ -307,8 +324,12 @@ class MainActivity : ComponentActivity() {
                         }
                     } else if (categories.isEmpty()) {
                         Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("No Folders With Apps Yet", color = onBg, style = LabelStyle)
-                            Text("Tap The Gear To Assign Apps", color = onBg.copy(alpha = 0.5f), style = LabelStyle)
+                            if (!initialDataLoaded) {
+                                Text("Loading Apps...", color = onBg, style = LabelStyle)
+                            } else {
+                                Text("No Folders With Apps Yet", color = onBg, style = LabelStyle)
+                                Text("Tap The Gear To Assign Apps", color = onBg.copy(alpha = 0.5f), style = LabelStyle)
+                            }
                         }
                     } else {
                         val splitFraction = (WheelConfig.topBottomSplitPercent.floatValue / 100f).coerceIn(0.001f, 0.999f)

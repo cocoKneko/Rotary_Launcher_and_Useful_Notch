@@ -286,24 +286,6 @@ private fun Modifier.pointerInputSafeDrag(
     }
 )
 
-// Thin wrapper kept separate purely so the long, fully-qualified pointerInput call
-// above stays readable — functionally identical to calling pointerInput directly.
-/*
-@Suppress("FunctionName")
-private fun Modifier.androidx_compose_ui_input_pointer_pointerInput_workaround(
-    onDragStart: () -> Unit,
-    onDrag: (Offset) -> Unit,
-    onDragEnd: () -> Unit
-): Modifier = androidx.compose.ui.input.pointer.pointerInput(Unit) {
-    detectDragGesturesAfterLongPress(
-        onDragStart = { onDragStart() },
-        onDrag = { change, amount -> change.consume(); onDrag(amount) },
-        onDragEnd = { onDragEnd() },
-        onDragCancel = { onDragEnd() }
-    )
-}
-*/
-
 @Composable
 private fun IconTile(app: AppEntry, size: Dp, onClick: () -> Unit) {
     val density = LocalDensity.current
